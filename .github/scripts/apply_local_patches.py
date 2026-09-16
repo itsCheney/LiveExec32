@@ -24,7 +24,7 @@ static constexpr size_t LC32_MAXIMUM_IFCONF_BYTES = 1024 * 1024;
 
 struct LC32Ifconf32 {
     int32_t ifc_len;
-    u32 ifc_buf;
+    u32 guest_buf;
 };
 
 static_assert(sizeof(LC32Ifconf32) == 8,
@@ -52,9 +52,9 @@ static int guest_siocgifconf32(int fildes, u32 guest_arg) {
         return return_with_carry_direct(ENOMEM, true);
     }
     if (guestCapacity != 0) {
-        if (guestIfconf.ifc_buf == 0 ||
+        if (guestIfconf.guest_buf == 0 ||
                 !guest_memory_range_has_permissions(
-                    guestIfconf.ifc_buf, guestCapacity, PROT_WRITE)) {
+                    guestIfconf.guest_buf, guestCapacity, PROT_WRITE)) {
             return return_with_carry_direct(EFAULT, true);
         }
     }
@@ -85,7 +85,7 @@ static int guest_siocgifconf32(int fildes, u32 guest_arg) {
         std::min(returnedLength, guestCapacity);
     if (copyLength != 0 &&
             !write_guest_memory_with_permissions(
-                guestIfconf.ifc_buf, hostBuffer.data(),
+                guestIfconf.guest_buf, hostBuffer.data(),
                 copyLength, PROT_WRITE)) {
         return return_with_carry_direct(EFAULT, true);
     }
