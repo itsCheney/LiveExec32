@@ -1,15 +1,12 @@
-name: Build LiveExec32
+name: Build LiveExec32 IPA
 
 on:
   push:
-    branches: [main, dev, fix/xplane-network-ioctl]
-  pull_request:
-    branches: [main]
+    branches: [dev]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # Let an in-flight release finish replacing the nightly assets atomically.
   cancel-in-progress: false
 
 jobs:
@@ -18,9 +15,6 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
-    outputs:
-      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
-      release-subject: ${{ steps.metadata.outputs.subject }}
 
     steps:
     - name: Checkout
@@ -87,13 +81,6 @@ jobs:
     - name: Assemble guest root filesystem
       run: bash GuestMakefile/pack-ramdisk.sh
 
-    # Validate the aggregate and rootless path rewriting, and retain the
-    # resulting package for the nightly release.
-    - name: Build rootless jailbreak package
-      run: >-
-        gmake package PACKAGE_FORMAT=deb
-        THEOS_PACKAGE_SCHEME=rootless
-
     - name: Save extracted guest ramdisk
       if: steps.ramdisk-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v6
@@ -101,54 +88,12 @@ jobs:
         path: tmp/ipsw/ramdisk.dmg
         key: ${{ steps.ramdisk-cache.outputs.cache-primary-key }}
 
-    - name: Build IPA
+    - name: Build LiveContainer IPA
       run: gmake package
 
-    - name: Read build metadata
-      id: metadata
-      shell: bash
-      run: |
-        printf 'subject=%s\n' "$(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
-
-    - name: Upload packages
-      id: artifact
+    - name: Upload IPA
       uses: actions/upload-artifact@v7
       with:
-        path: |
-          packages/*.ipa
-          packages/*.deb
+        name: LiveExec32-IPA
+        path: packages/*.ipa
         if-no-files-found: error
-
-  release:
-    name: Nightly Release
-    if: >-
-      github.event_name != 'pull_request' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-    needs: build
-    runs-on: ubuntu-latest
-    concurrency:
-      group: nightly-release
-      cancel-in-progress: false
-    permissions:
-      contents: write
-
-    steps:
-    - name: Download packages
-      uses: actions/download-artifact@v8
-      with:
-        artifact-ids: ${{ needs.build.outputs.artifact-id }}
-        path: packages
-
-    - name: Nightly Release
-      uses: andelf/nightly-release@5834076edc55cc05975561c9722043f072ac5c26
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      with:
-        body: |
-          **Commit:** [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-          **Message:** ${{ needs.build.outputs.release-subject }}
-
-          This is a nightly release [created automatically with GitHub Actions workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}).
-        files: |
-          packages/*.ipa
-          packages/*.deb
