@@ -2,7 +2,7 @@ name: Build LiveExec32
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, fix/xplane-network-ioctl]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -28,6 +28,9 @@ jobs:
       with:
         submodules: recursive
         persist-credentials: false
+
+    - name: Apply fork compatibility patches
+      run: python3 .github/scripts/apply_local_patches.py
 
     - name: Restore extracted guest ramdisk
       id: ramdisk-cache
