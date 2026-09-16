@@ -1,3 +1,4 @@
+# LC32 fork-local compatibility patch set for legacy ARMv7 apps.
 from pathlib import Path
 
 source = Path("HostFrameworks/LC32/dynarmic_syscalls.cpp")
