@@ -1,0 +1,32 @@
+name: Prepare network ioctl PR
+
+on:
+  push:
+    branches:
+      - tmp/prepare-armv7-network-ioctls
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Apply source patch
+        run: python3 .github/scripts/prepare_network_ioctl_pr.py
+
+      - name: Commit prepared source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/scripts/prepare_network_ioctl_pr.py
+          git rm .github/workflows/prepare-network-ioctl-pr.yml
+          git add HostFrameworks/LC32/dynarmic_syscalls.cpp
+          git diff --cached --check
+          git commit -m "LC32: bridge ARMv7 network interface ioctls"
+          git push origin HEAD:tmp/prepare-armv7-network-ioctls
